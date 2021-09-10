@@ -12,3 +12,6 @@ The end-goal is to be able to generate an identity (a private EC key) and have t
 The inspiration for this thesis are mainly:
 * Bitcoin - the first cryptocurrency
 * Monero - the leading privacy coin
+
+# TODO
+- [ ] Implement basic mempool as array/map
