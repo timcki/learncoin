@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"math/rand"
+
+	"github.com/timcki/learncoin/crypto"
 )
 
 // Address is a mock structure for representing addresses
@@ -40,8 +42,8 @@ func (t *Transaction) toBytes() []byte {
 	return buffer.Bytes()
 }
 
-func (t *Transaction) Hash() (Hash, error) {
-	if h, err := hash(t.toBytes()); err != nil {
+func (t *Transaction) Hash() (crypto.Hash, error) {
+	if h, err := crypto.HashData(t.toBytes()); err != nil {
 		return nil, err
 	} else {
 		return h, nil

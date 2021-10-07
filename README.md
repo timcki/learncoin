@@ -4,6 +4,18 @@
 
 A cryptocurrency developed for my engineering thesis featuring a simple blockchain and confidential transactions
 
+## Running the project
+To build learncoind run
+```bash
+go build -o learncoind *.go
+```
+in the root dir
+
+Then to run
+```
+./learncoind -d -i
+```
+
 ## Short technical description
 This project is a basic implementation of a blockchain based cryptocurrency featuring confidentinal transactions using zero knowledge proofs.
 

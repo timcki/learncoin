@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"flag"
 	"net"
 	"os"
@@ -9,19 +10,21 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/timcki/learncoin/crypto"
+	"github.com/timcki/learncoin/messages"
 )
 
 // Header is the header of a block
 type Header struct {
 	version      uint8
-	previousHash Hash
-	merkleRoot   Hash
+	previousHash crypto.Hash
+	merkleRoot   crypto.Hash
 	time         time.Time
 }
 
 type Block struct {
 	header       Header
-	transactions MerkleTree
+	transactions crypto.MerkleTree
 }
 
 type BlockChain struct {
@@ -29,27 +32,30 @@ type BlockChain struct {
 	mu     sync.RWMutex
 }
 
+// TODO: Move this to the peer package?
 const (
-	connHost = "localhost"
-	connType = "tcp"
+	connHost string = "localhost"
+	connType string = "tcp"
 )
 
+// TODO: Persistent storage of known nodes
 var (
-	Peers = make(map[string]*Peer)
+	connPort string
+	Peers    = make(map[string]*Peer)
 )
 
 func testMerkleTree() {
-	txs := []Hashable{randomTransaction(), randomTransaction(), randomTransaction()}
+	txs := []crypto.Hashable{randomTransaction(), randomTransaction(), randomTransaction()}
 	for _, tx := range txs {
 		hash, _ := tx.Hash()
 		log.Info().Msg(hash.String())
 	}
-	tree, err := NewMerkleTree(txs)
+	tree, err := crypto.NewMerkleTree(txs)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initiate merkle tree: ")
 		return
 	}
-	for i, el := range tree.nodes {
+	for i, el := range tree.GetNodes() {
 		log.Info().Msgf("%d %+v", i, el)
 	}
 	log.Info().Msg(tree.RootHash().String())
@@ -61,7 +67,6 @@ func main() {
 	// testMerkleTree()
 
 	// Parse CLI flags
-	var connPort string
 	var defaultPeers bool
 	var debugLogging bool
 	flag.StringVar(&connPort, "p", "8080", "Listener port")
@@ -75,17 +80,24 @@ func main() {
 	}
 
 	// Default peer list
-	peerAddrs := []string{"localhost:8081", "localhost:8082"}
+	peerAddrs := []string{"localhost:8081"}
+
+	gob.Register(messages.VersionMessage{})
+	gob.Register(messages.VerAckMessage{})
+	gob.Register(messages.PingMessage{})
+	gob.Register(messages.PongMessage{})
 
 	// Connect to peers from the default list
 	// TODO: Have only one node here and use the propagation algorithm
+	// NOTE: In this way we make duplicate connections because
+	// inbound port != outboud port
 	if defaultPeers {
 		for _, peerAddr := range peerAddrs {
-			if peer, err := newOutboundPeer(peerAddr); err != nil {
+			if peer, err := NewOutboundPeer(peerAddr); err != nil {
 				log.Error().Err(err).Str("peer", peerAddr).Msg("Failed connection to peer")
 			} else {
 				peer.start()
-				Peers[peerAddr] = peer
+				Peers[peer.addr] = peer
 			}
 		}
 
@@ -103,13 +115,12 @@ func main() {
 		if conn, err := listener.Accept(); err != nil {
 			log.Error().Err(err).Msg("Error while accepting connection")
 		} else {
-			addr := conn.RemoteAddr().String()
-			if peer, err := newInboundPeer(conn); err != nil {
-				log.Error().Err(err).Msgf("Error while accepting connection from %s", addr)
+			if peer, err := NewInboundPeer(conn); err != nil {
+				log.Error().Err(err).Msg("Error while accepting connection")
 			} else {
-				log.Info().Msgf("Got peer from %s", addr)
+				log.Info().Msgf("Got peer from %s", peer.addr)
 				peer.start()
-				Peers[addr] = peer
+				Peers[peer.addr] = peer
 			}
 		}
 	}

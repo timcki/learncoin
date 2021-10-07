@@ -1,6 +1,8 @@
-package main
+package crypto
 
-import "math"
+import (
+	"math"
+)
 
 type Node struct {
 	leaf    bool
@@ -45,7 +47,7 @@ func NewMerkleTree(elements []Hashable) (*MerkleTree, error) {
 	}
 	// Fill all parent nodes until root
 	for i := baseIndex - 1; i >= 0; i-- {
-		childrenHash, err := hash(append(tree[2*i+1].Hash, tree[2*i+2].Hash...))
+		childrenHash, err := HashData(append(tree[2*i+1].Hash, tree[2*i+2].Hash...))
 		if err != nil {
 			return nil, err
 		}
@@ -68,6 +70,10 @@ func fillElements(el []Hashable) ([]Hashable, float64) {
 
 func (m *MerkleTree) RootHash() Hash {
 	return m.nodes[0].Hash
+}
+
+func (m *MerkleTree) GetNodes() []Node {
+	return m.nodes
 }
 
 // TODO: Print the MerkleTree in a pretty form with hashes and values
