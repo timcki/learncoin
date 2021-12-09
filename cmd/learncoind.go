@@ -2,16 +2,22 @@ package main
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"flag"
+	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/timcki/learncoin/crypto"
-	"github.com/timcki/learncoin/messages"
+	"github.com/timcki/learncoin/internal/config"
+	"github.com/timcki/learncoin/internal/crypto"
+	"github.com/timcki/learncoin/internal/messages"
+	"github.com/timcki/learncoin/internal/node"
+	"github.com/timcki/learncoin/internal/peer"
 )
 
 // Header is the header of a block
@@ -27,23 +33,13 @@ type Block struct {
 	transactions crypto.MerkleTree
 }
 
-type BlockChain struct {
+type Chain struct {
 	blocks []Block
 	mu     sync.RWMutex
 }
 
-// TODO: Move this to the peer package?
-const (
-	connHost string = "localhost"
-	connType string = "tcp"
-)
 
-// TODO: Persistent storage of known nodes
-var (
-	connPort string
-	Peers    = make(map[string]*Peer)
-)
-
+/*
 func testMerkleTree() {
 	txs := []crypto.Hashable{randomTransaction(), randomTransaction(), randomTransaction()}
 	for _, tx := range txs {
@@ -60,32 +56,64 @@ func testMerkleTree() {
 	}
 	log.Info().Msg(tree.RootHash().String())
 }
+*/
 
-func main() {
+func init() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	// testMerkleTree()
-
-	// Parse CLI flags
-	var defaultPeers bool
-	var debugLogging bool
-	flag.StringVar(&connPort, "p", "8080", "Listener port")
-	flag.BoolVar(&defaultPeers, "i", false, "Ignore default peer list on startup")
-	flag.BoolVar(&debugLogging, "d", false, "Set log level to debug")
-	flag.Parse()
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if debugLogging {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
-	// Default peer list
-	peerAddrs := []string{"localhost:8081"}
 
 	gob.Register(messages.VersionMessage{})
 	gob.Register(messages.VerAckMessage{})
 	gob.Register(messages.PingMessage{})
 	gob.Register(messages.PongMessage{})
+
+}
+
+func main() {
+
+	// Parse CLI flags
+	var defaultPeers bool
+	var debugLogging bool
+	var connPort string
+
+	flag.StringVar(&connPort, "p", "", "Listener port")
+	flag.BoolVar(&defaultPeers, "i", false, "Ignore default peer list on startup")
+	flag.BoolVar(&debugLogging, "d", false, "Set log level to debug")
+	flag.Parse()
+
+	if debugLogging {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
+	// testMerkleTree()
+
+	// Read NodeConfig from disk or generate new one is non-existing
+	var nodeConfig config.NodeConfig
+	conf, err := os.Open("data/config.gob")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read node config from disk")
+		nodeConfig, err = config.NewNodeConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to generate node config exiting")
+			os.Exit(-1)
+		}
+	} else {
+		json.NewDecoder(conf).Decode(nodeConfig)
+	}
+	// Check port on which to launch connections
+	if connPort != "" {
+		if connPort == "random" {
+			connPort = strconv.Itoa(8000 + rand.Intn(3000))
+		}
+		nodeConfig.SetPort(connPort)
+	}
+
+	node := node.NewNode(nodeConfig)
+
+	// Default peer list
+	// TODO: Move to file
+	peerAddrs := []string{"localhost:8081"}
 
 	// Connect to peers from the default list
 	// TODO: Have only one node here and use the propagation algorithm
@@ -93,36 +121,14 @@ func main() {
 	// inbound port != outboud port
 	if defaultPeers {
 		for _, peerAddr := range peerAddrs {
-			if peer, err := NewOutboundPeer(peerAddr); err != nil {
-				log.Error().Err(err).Str("peer", peerAddr).Msg("Failed connection to peer")
-			} else {
-				peer.start()
-				Peers[peer.addr] = peer
+			if err := node.NewOutboundPeer(peerAddr); err != nil {
+				log.Error().Err(err).Str("peer", peerAddr).Msg("Failed connecton to peer")
 			}
 		}
 
 	}
 
-	log.Info().Msgf("Starting %s server on %s:%s", connType, connHost, connPort)
+	node.Start()
 
-	listener, err := net.Listen(connType, connHost+":"+connPort)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error while opening listener")
-	}
-	defer listener.Close()
-
-	for {
-		if conn, err := listener.Accept(); err != nil {
-			log.Error().Err(err).Msg("Error while accepting connection")
-		} else {
-			if peer, err := NewInboundPeer(conn); err != nil {
-				log.Error().Err(err).Msg("Error while accepting connection")
-			} else {
-				log.Info().Msgf("Got peer from %s", peer.addr)
-				peer.start()
-				Peers[peer.addr] = peer
-			}
-		}
-	}
 
 }

@@ -1,8 +1,17 @@
 FROM golang:alpine as builder
-WORKDIR /learncoin
-COPY ./ .
-RUN go get && CGO_ENABLED=0 go build -o learncoind *.go
+WORKDIR /src
+ENV CGO_ENABLED=0
 
-FROM scratch
-COPY --from=builder /learncoin/learncoind /learncoind
-CMD ["/learncoind", "-i", "-d"]
+# Make sure to not redownload all dependencies each time
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+# Copy source files
+COPY cmd cmd
+COPY internal internal
+
+RUN go build -o /bin/learncoind cmd/learncoind.go
+
+#FROM scratch
+#COPY --from=builder /bin/learncoind /learncoind
+#CMD ["/learncoind", "-i", "-d"]

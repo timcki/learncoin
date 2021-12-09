@@ -7,7 +7,7 @@ A cryptocurrency developed for my engineering thesis featuring a simple blockcha
 ## Running the project
 To build learncoind run
 ```bash
-go build -o learncoind *.go
+go build -o learncoind .
 ```
 in the root dir
 
@@ -27,3 +27,6 @@ The inspiration for this thesis are mainly:
 
 # TODO
 - [ ] Implement basic mempool as array/map
+- [ ] Implement ECC
+    - [ ] Ed25519 Curve as struct with addition etc
+    - [ ] ECDSA on Ed25519

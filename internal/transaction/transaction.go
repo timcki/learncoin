@@ -1,11 +1,11 @@
-package main
+package transaction
 
 import (
 	"bytes"
 	"encoding/gob"
 	"math/rand"
 
-	"github.com/timcki/learncoin/crypto"
+	"github.com/timcki/learncoin/internal/crypto"
 )
 
 // Address is a mock structure for representing addresses

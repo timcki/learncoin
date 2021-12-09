@@ -1,5 +1,7 @@
 package messages
 
+import "github.com/timcki/learncoin/internal/crypto"
+
 const (
 	// Used to identify new nodes in the network
 	CmdVersion = "version"
@@ -16,13 +18,15 @@ const (
 )
 
 type VersionMessage struct {
-	Address string
+	Version string
+	ID      crypto.Hash
 	Nonce   uint64 // Random nonce to detect connections to self
 }
 
-func NewVersionMessage(addr, port string) Message {
-	return &VersionMessage{
-		Address: addr + ":" + port,
+func NewVersionMessage(version string, id crypto.Hash) VersionMessage {
+	return VersionMessage{
+		Version: version,
+		ID:      id,
 		Nonce:   0,
 	}
 }

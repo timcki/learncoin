@@ -1,0 +1,12 @@
+version: '3.16'
+
+services:
+
+    learncoind:
+        build: .
+        #volumes:
+        #    - $HOME/.local/go/pkg:/go/pkg
+        #environment:
+        #    .env
+        ports:
+            - '5000:5000'
