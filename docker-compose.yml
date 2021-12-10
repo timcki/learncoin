@@ -1,12 +1,16 @@
 version: '3.16'
 
 services:
+    bootstrapper:
+        build: .
+        env_file: .env
 
     learncoind:
         build: .
-        #volumes:
-        #    - $HOME/.local/go/pkg:/go/pkg
-        #environment:
-        #    .env
-        ports:
-            - '5000:5000'
+        depends_on:
+            - bootstrapper
+        env_file: .env
+        environment:
+            - BOOTSTRAP_NODE=bootstrapper:8080
+        #ports:
+            #- '5000:5000'

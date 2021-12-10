@@ -3,41 +3,17 @@ package main
 import (
 	"encoding/gob"
 	"encoding/json"
-	"flag"
 	"math/rand"
-	"net"
 	"os"
 	"strconv"
-	"sync"
-	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log "github.com/inconshreveable/log15"
+	"github.com/timcki/learncoin/internal/chain"
 	"github.com/timcki/learncoin/internal/config"
-	"github.com/timcki/learncoin/internal/crypto"
+	"github.com/timcki/learncoin/internal/constants"
 	"github.com/timcki/learncoin/internal/messages"
 	"github.com/timcki/learncoin/internal/node"
-	"github.com/timcki/learncoin/internal/peer"
 )
-
-// Header is the header of a block
-type Header struct {
-	version      uint8
-	previousHash crypto.Hash
-	merkleRoot   crypto.Hash
-	time         time.Time
-}
-
-type Block struct {
-	header       Header
-	transactions crypto.MerkleTree
-}
-
-type Chain struct {
-	blocks []Block
-	mu     sync.RWMutex
-}
-
 
 /*
 func testMerkleTree() {
@@ -58,77 +34,75 @@ func testMerkleTree() {
 }
 */
 
-func init() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
+func initGob() {
 	gob.Register(messages.VersionMessage{})
 	gob.Register(messages.VerAckMessage{})
 	gob.Register(messages.PingMessage{})
 	gob.Register(messages.PongMessage{})
+}
 
+func testCrypto() {
+	logger := log.New()
+	address, err := chain.NewAddress()
+	if err != nil {
+		logger.Error("", "err", err)
+	}
+	logger.Info(address.PubKey.ToHumanReadable())
 }
 
 func main() {
+	initGob()
+	testCrypto()
 
-	// Parse CLI flags
-	var defaultPeers bool
-	var debugLogging bool
-	var connPort string
-
-	flag.StringVar(&connPort, "p", "", "Listener port")
-	flag.BoolVar(&defaultPeers, "i", false, "Ignore default peer list on startup")
-	flag.BoolVar(&debugLogging, "d", false, "Set log level to debug")
-	flag.Parse()
-
-	if debugLogging {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	var logger log.Logger
+	if os.Getenv("ENVIRONMENT") == "dev" {
+		logger = log.New()
 	} else {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		logger = log.New()
 	}
+	logger.SetHandler(log.MultiHandler(
+		log.StreamHandler(os.Stderr, log.LogfmtFormat()),
+	))
 
 	// testMerkleTree()
 
 	// Read NodeConfig from disk or generate new one is non-existing
 	var nodeConfig config.NodeConfig
-	conf, err := os.Open("data/config.gob")
+	conf, err := os.Open("data/config.json")
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to read node config from disk")
+		logger.Warn("Failed to read node config from disk")
 		nodeConfig, err = config.NewNodeConfig()
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to generate node config exiting")
+			logger.Error("Failed to generate node config", "err", err)
 			os.Exit(-1)
 		}
+		logger.Info("Generated new node config")
 	} else {
-		json.NewDecoder(conf).Decode(nodeConfig)
+		json.NewDecoder(conf).Decode(&nodeConfig)
 	}
 	// Check port on which to launch connections
+	connPort := os.Getenv("NODE_PORT")
 	if connPort != "" {
 		if connPort == "random" {
 			connPort = strconv.Itoa(8000 + rand.Intn(3000))
 		}
-		nodeConfig.SetPort(connPort)
+		nodeConfig.SetAddr(config.NewAddress(constants.ConnAddr, connPort))
 	}
 
-	node := node.NewNode(nodeConfig)
+	node := node.NewNode(nodeConfig, logger.New("node", "main_node"))
 
 	// Default peer list
 	// TODO: Move to file
-	peerAddrs := []string{"localhost:8081"}
+	//peerAddrs := []string{"bootstrapper:8080"}
 
 	// Connect to peers from the default list
 	// TODO: Have only one node here and use the propagation algorithm
-	// NOTE: In this way we make duplicate connections because
-	// inbound port != outboud port
-	if defaultPeers {
-		for _, peerAddr := range peerAddrs {
-			if err := node.NewOutboundPeer(peerAddr); err != nil {
-				log.Error().Err(err).Str("peer", peerAddr).Msg("Failed connecton to peer")
-			}
+	if os.Getenv("BOOTSTRAP_NODE") != "" {
+		logger.Info("Starting bootstrap")
+		if err := node.NewOutboundPeer(os.Getenv("BOOTSTRAP_NODE")); err != nil {
+			logger.Error("Failed connecton to peer", "peer", os.Getenv("BOOTSTRAP_NODE"))
 		}
-
 	}
 
 	node.Start()
-
-
 }

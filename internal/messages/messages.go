@@ -19,13 +19,15 @@ const (
 
 type VersionMessage struct {
 	Version string
-	ID      crypto.Hash
+	Address string
+	ID      crypto.FixedHash
 	Nonce   uint64 // Random nonce to detect connections to self
 }
 
-func NewVersionMessage(version string, id crypto.Hash) VersionMessage {
+func NewVersionMessage(version, addr string, id crypto.FixedHash) VersionMessage {
 	return VersionMessage{
 		Version: version,
+		Address: addr,
 		ID:      id,
 		Nonce:   0,
 	}
@@ -47,8 +49,8 @@ func NewVerAckMessage() Message {
 
 type GetAddrMessage struct{}
 
-func NewGetAddrMessage() Message {
-	return new(GetAddrMessage)
+func NewGetAddrMessage() GetAddrMessage {
+	return GetAddrMessage{}
 }
 
 func (m GetAddrMessage) Command() string {

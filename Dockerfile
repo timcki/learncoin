@@ -10,8 +10,8 @@ RUN go mod download
 COPY cmd cmd
 COPY internal internal
 
-RUN go build -o /bin/learncoind cmd/learncoind.go
+RUN go build -o bin/learncoind cmd/learncoind.go
 
-#FROM scratch
-#COPY --from=builder /bin/learncoind /learncoind
-#CMD ["/learncoind", "-i", "-d"]
+FROM alpine
+COPY --from=builder /src/bin/learncoind /bin/learncoind
+CMD ["/bin/learncoind"]
