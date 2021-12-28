@@ -1,14 +1,11 @@
 package chain
 
 import (
-	"bytes"
-	"crypto/ed25519"
-	"crypto/rand"
 	"sync"
 	"time"
 
-	"github.com/akamensky/base58"
 	"github.com/timcki/learncoin/internal/crypto"
+	"github.com/timcki/learncoin/internal/transaction"
 )
 
 // Header is the header of a block
@@ -29,67 +26,55 @@ type Chain struct {
 	mu     sync.RWMutex
 }
 
-type PrivKey struct {
-	a ed25519.PrivateKey
-	b ed25519.PrivateKey
+type UtxoSet interface {
+	Add(transaction.Utxo) error
+	UtxoIn(transaction.Utxo) bool
+	Remove(transaction.Utxo) error
+	GetUtxos() []*transaction.Utxo
 }
 
-type PublicKey struct {
-	A ed25519.PublicKey
-	B ed25519.PublicKey
+type utxoSet struct {
+	set map[crypto.FixedHash]*transaction.Utxo
 }
 
-func (pb PublicKey) ToHumanReadable() (string, error) {
-	// Buffer that holds 0x96b9f4+<2 public keys>+checksum
-	var buffer bytes.Buffer
-	// Writing bytes to have every address begin by 38dF
-	buffer.WriteRune('a')
-	buffer.WriteRune('g')
-	buffer.WriteRune('h')
-	//buffer.WriteRune(0xf4)
-	//buffer.WriteRune(0xb9)
-	//buffer.WriteRune(0x96)
-	if _, err := buffer.Write(pb.A); err != nil {
-		return "", err
+func NewUtxoSet() UtxoSet {
+	return &utxoSet{
+		set: make(map[crypto.FixedHash]*transaction.Utxo),
 	}
-	if _, err := buffer.Write(pb.B); err != nil {
-		return "", err
-	}
-	checkA := pb.A
-	//checksum is the hash of the two public keys
-	checksum, err := crypto.HashData(append(checkA, pb.B...))
+}
+
+func (u *utxoSet) Add(utxo transaction.Utxo) error {
+	h, err := utxo.Hash()
 	if err != nil {
-		return "", err
-	}
-	// writing first 8 bytes to compare
-	if _, err := buffer.Write(checksum[:8]); err != nil {
-		return "", err
+		return err
 	}
 
-	return base58.Encode(buffer.Bytes()), nil
+	u.set[h.ToFixedHash()] = &utxo
+	return nil
 }
 
-func NewPublicKeyFromHumanReadable(key string) {
-
-}
-
-type Address struct {
-	privKey PrivKey
-	PubKey  PublicKey
-}
-
-// NewAddress generates a new address with entropy
-func NewAddress() (Address, error) {
-	var addr Address
-	puba, priva, err := ed25519.GenerateKey(rand.Reader)
+func (u *utxoSet) UtxoIn(utxo transaction.Utxo) bool {
+	h, err := utxo.Hash()
 	if err != nil {
-		return addr, err
+		return false
 	}
-	pubb, privb, err := ed25519.GenerateKey(rand.Reader)
+	_, k := u.set[h.ToFixedHash()]
+	return k
+}
+
+func (u *utxoSet) Remove(utxo transaction.Utxo) error {
+	h, err := utxo.Hash()
 	if err != nil {
-		return addr, err
+		return err
 	}
-	addr.privKey = PrivKey{a: priva, b: privb}
-	addr.PubKey = PublicKey{A: puba, B: pubb}
-	return addr, nil
+	delete(u.set, h.ToFixedHash())
+	return nil
+}
+
+func (u *utxoSet) GetUtxos() []*transaction.Utxo {
+	ret := make([]*transaction.Utxo, 0)
+	for _, v := range u.set {
+		ret = append(ret, v)
+	}
+	return ret
 }
