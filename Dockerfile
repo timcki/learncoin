@@ -1,4 +1,4 @@
-FROM golang:alpine as builder
+FROM golang:rc-alpine as builder
 WORKDIR /src
 ENV CGO_ENABLED=0
 
@@ -10,8 +10,10 @@ RUN go mod download
 COPY cmd cmd
 COPY internal internal
 
-RUN go build -o bin/learncoind cmd/learncoind.go
+RUN go build -o bin/learncoind cmd/learncoind/main.go && \
+    go build -o bin/cryptotesting cmd/cryptotesting/main.go
 
 FROM alpine
 COPY --from=builder /src/bin/learncoind /bin/learncoind
-CMD ["/bin/learncoind"]
+COPY --from=builder /src/bin/cryptotesting /bin/cryptotesting
+CMD ["/bin/cryptotesting"]
