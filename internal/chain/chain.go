@@ -31,6 +31,7 @@ type UtxoSet interface {
 	UtxoIn(transaction.Utxo) bool
 	Remove(transaction.Utxo) error
 	GetUtxos() []*transaction.Utxo
+	Get(crypto.FixedHash) *transaction.Utxo
 }
 
 type utxoSet struct {
@@ -77,4 +78,8 @@ func (u *utxoSet) GetUtxos() []*transaction.Utxo {
 		ret = append(ret, v)
 	}
 	return ret
+}
+
+func (u *utxoSet) Get(h crypto.FixedHash) *transaction.Utxo {
+	return u.set[h]
 }

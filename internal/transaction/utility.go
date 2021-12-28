@@ -39,9 +39,10 @@ func hashPointToScalar(point *edwards25519.Point) (*edwards25519.Scalar, error) 
 	return edwards25519.NewScalar().SetBytesWithClamping(rBytes)
 }
 
-// TODO: Implement
 func HashPoint(p *edwards25519.Point) *edwards25519.Point {
-	return p
+	// Compute sha256 of point and convert it to scalar with clamping -> deterministic
+	x, _ := hashPointToScalar(p)
+	return edwards25519.NewIdentityPoint().ScalarMult(x, p)
 }
 
 func randomScalar() (priv *edwards25519.Scalar, err error) {

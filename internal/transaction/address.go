@@ -116,6 +116,32 @@ func NewAddress() (Address, error) {
 	return addr, nil
 }
 
+func (a Address) NewTransaction(utxosIn []Utxo, amount float32, to Address) Transaction {
+	// Check if input amount == output amount.  If not we need
+	// to generate change output to a new one time address generated
+	// from our keys
+	changeAmount := utxosIn[0].Amount - amount
+	oneTimeTo, _ := to.NewDestinationAddress()
+
+	// Create utxo out
+	utxosOut := []Utxo{*NewUtxo(amount, oneTimeTo)}
+	var changeUtxo *Utxo = nil
+	if changeAmount != 0 {
+		oneTimeChange, _ := a.NewDestinationAddress()
+		changeUtxo = NewUtxo(changeAmount, oneTimeChange)
+	}
+	if changeUtxo != nil {
+		utxosOut = append(utxosOut, *changeUtxo)
+	}
+
+	return Transaction{
+		UtxosIn:  utxosIn,
+		UtxosOut: utxosOut,
+		To:       oneTimeTo,
+		Sigature: RingSignature{},
+	}
+}
+
 // CheckDestinationAddress checks if the destination address was generated from
 // his public keyset:
 // P' = Hs(aR)G + B

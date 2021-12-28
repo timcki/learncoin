@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 
@@ -20,30 +19,25 @@ type Utxo struct {
 	Keypair OneTimeAddress
 }
 
+// Transaction represents a transaction in the learncoin network. It has one ring input and returns either a single output
+// or the output and change back to the origin address
 type Transaction struct {
-	UtxosIn  [][]*Utxo
-	UtxosOut []*Utxo
-	From     Address
-	To       Address
+	UtxosIn  []Utxo
+	UtxosOut []Utxo
+	To       OneTimeAddress
+	Sigature RingSignature
 }
 
 // CheckValidity performs checks making sure that the txn is valid
 func (t Transaction) CheckValidity() bool {
-	var sumIn float32 = 0
+	var sumIn float32 = t.UtxosIn[0].Amount
 	var sumOut float32 = 0
 	// check if all amounts are >0
-	for _, utxos := range t.UtxosIn {
+	for _, utxo := range t.UtxosIn {
 		// Check if all inputs in ring sig have the same amount
-		val := utxos[0].Amount
-		if val < 0 {
+		if utxo.Amount < 0 || utxo.Amount != sumIn {
 			return false
 		}
-		for _, utxo := range utxos[1:] {
-			if val != utxo.Amount || utxo.Amount < 0 {
-				return false
-			}
-		}
-		sumIn += val
 	}
 	for _, utxo := range t.UtxosOut {
 		if utxo.Amount < 0 {
@@ -106,13 +100,17 @@ func NewUtxo(amount float32, keypair OneTimeAddress) *Utxo {
 //return Transaction{Sender: sender, Receiver: receiver, Amount: amount}
 //}
 
+//func NewTransaction(in []*Utxo, out []*Utxo, to OneTimeAddress) {
+//return &
+
+//}
+
 // I'm choosing the default Go byte encoder (gob). It reduces interoperability
 // but it's not important since this is a reference design.
 // In case of a problem it's also abstracted away so easy to change
 func (t Transaction) Bytes() []byte {
 	buffer := new(bytes.Buffer)
-	encoder := gob.NewEncoder(buffer)
-	encoder.Encode(t)
+	json.NewEncoder(buffer).Encode(t)
 	return buffer.Bytes()
 }
 

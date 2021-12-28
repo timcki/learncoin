@@ -33,14 +33,11 @@ func KeyImage(addr Address, dest OneTimeAddress) (x *edwards25519.Scalar, img *e
 // ComputeChallenge is used to compute c.
 // c is used in computing the challenge for the real txn
 // in the ring set
-// TODO: single UTXO or entire Transaction ?
-func ComputeChallenge(messages []Utxo, L []*edwards25519.Point, R []*edwards25519.Point) (*edwards25519.Scalar, error) {
+func ComputeChallenge(message []byte, L []*edwards25519.Point, R []*edwards25519.Point) (*edwards25519.Scalar, error) {
 	var buffer bytes.Buffer
 
 	// Write message (utxo in bytes representation) to buffer
-	for _, message := range messages {
-		buffer.Write(message.Bytes())
-	}
+	buffer.Write(message)
 
 	// Write consecutive L_i to buffer
 	for _, Li := range L {
@@ -62,7 +59,7 @@ func ComputeChallenge(messages []Utxo, L []*edwards25519.Point, R []*edwards2551
 // NewRingSignature returns a ring sig for given utxo and array of decoys with same value
 // To create a ring signature we need the priv key of our destination address
 // and n pubkeys from other txns with the same value as ours
-func (a Address) NewRingSignature(realTxn Utxo, decoyTxns []Utxo) RingSignature {
+func (a Address) NewRingSignature(realTxn Utxo, decoyTxns []Utxo, message []byte) RingSignature {
 
 	//d.P.MultiScalarMult()
 
@@ -105,7 +102,7 @@ func (a Address) NewRingSignature(realTxn Utxo, decoyTxns []Utxo) RingSignature 
 	}
 
 	// Compute the challenge
-	c, err := ComputeChallenge(txns, L, R)
+	c, err := ComputeChallenge(message, L, R)
 	if err != nil {
 		panic(err)
 	}
@@ -182,7 +179,7 @@ func (ringSig RingSignature) ImageToPoint() (*edwards25519.Point, error) {
 	return edwards25519.NewIdentityPoint().SetBytes(ringSig.Image)
 }
 
-func (ringSig RingSignature) CheckSignatureValidity() bool {
+func (ringSig RingSignature) CheckSignatureValidity(message []byte) bool {
 	// Parse from byte values
 	c, r, err := ringSig.CRToScalars()
 	if err != nil {
@@ -209,15 +206,11 @@ func (ringSig RingSignature) CheckSignatureValidity() bool {
 		sumCi = edwards25519.NewScalar().Add(sumCi, c[i])
 	}
 
-	challenge, err := ComputeChallenge(ringSig.Utxos, L, R)
+	challenge, err := ComputeChallenge(message, L, R)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-	fmt.Printf("h: %x  c: %x\n", challenge.Bytes(), sumCi.Bytes())
-	if challenge.Equal(sumCi) != 1 {
-		return false
-	}
 
-	return true
+	return challenge.Equal(sumCi) == 1
 }
