@@ -1,0 +1,95 @@
+{
+  "main": {
+    "id": "3f7ffafab0fa9a37",
+    "type": "split",
+    "children": [
+      {
+        "id": "2319da2dca66134c",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "thesis/thesis.md.md",
+            "mode": "source",
+            "source": false
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "b0a10433049df696",
+    "type": "split",
+    "children": [
+      {
+        "id": "3353b4e1c9cf0fc8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9f5f980344a56807",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "3042c2023099ac54",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "ae3a652a7617b266",
+    "type": "split",
+    "children": [
+      {
+        "id": "c7d801ecc77d7f67",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2aade6aaba22aa52",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "thesis/thesis.md.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "2319da2dca66134c",
+  "lastOpenFiles": [
+    "thesis/thesis.md.md",
+    "thesis.md"
+  ]
+}
