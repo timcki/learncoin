@@ -2,6 +2,7 @@ package peer
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -106,18 +107,20 @@ func (p peer) IsAlive() bool {
 	return p.alive
 }
 
-func (p peer) readMessage() (message messages.Message, err error) {
-	decoder := gob.NewDecoder(p.conn)
-	if err = decoder.Decode(&message); err != nil {
+func readMessage[T messages.Msg](conn net.Conn) (*T, error) {
+	header := new(messages.MessageHeader)
+	decoder := json.NewDecoder(conn)
+	if err := decoder.Decode(header); err != nil {
 		//log.Error().Err(err).Msg("Failed to parse message")
-		return
+		return header, err
 	}
-	return
+	//return
 }
 
-func (p peer) writeMessage(msg messages.Message) error {
+func writeMessage[T messages.Message](msg T, conn net.Conn) error {
 	// TODO: (?) Create global encoder and hold it in structure
 	p.logger.Info("!!!!!!!!!!!!!!!!!!!!", "conn", p.conn.RemoteAddr().String())
+	//header := messages.MessageHeader{Cmd: msg.Command()}
 	encoder := gob.NewEncoder(p.conn)
 	if err := encoder.Encode(&msg); err != nil {
 		p.logger.Error("Failed to send message", "msg", msg.Command(), "err", err)

@@ -133,8 +133,10 @@ func (sim *ChainSimulation) scanAddress(n int) int {
 
 func main() {
 
+		addr, _ := transaction.NewAddress()
+		fmt.Printf("%x %x\n", addr.PubKey.A.Bytes(), addr.PubKey.B.Bytes())
+		fmt.Println(addr.PubKey.ToHumanReadable(false))
 	/*
-		addr1, _ := transaction.NewAddress()
 		addr2, _ := transaction.NewAddress()
 
 		fmt.Println(addr1.PubKey.ToHumanReadable(false))

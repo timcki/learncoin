@@ -92,6 +92,10 @@ func NewPongMessage() Message {
 	return new(PongMessage)
 }
 
+type Msg interface {
+	MessageHeader | PingMessage | PongMessage | AddrMessage | GetAddrMessage
+}
+
 // Interface that struct must implement to
 // be a valid message in the learncoin protocol
 type Message interface {
@@ -102,10 +106,12 @@ type Message interface {
 // messages in the learncoin protocol. It has a fixed
 // size which simplifies marshalling/unmarshalling
 // Size: 14 bytes
-// TODO: Implement a checksum
-// NOTE: Currently unused
-type messageHeader struct {
-	Command string // 10 bytes (fixed)
+type MessageHeader struct {
+	Cmd string // 10 bytes (fixed)
 	// length   uint32  // 4 bytes
 	// checksum [4]byte // 4 bytes
+}
+
+func (h MessageHeader) Command() string {
+	return h.Cmd
 }
