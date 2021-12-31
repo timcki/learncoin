@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	//"github.com/TylerBrock/colorjson"
 	"github.com/timcki/learncoin/internal/crypto"
 )
 
@@ -112,6 +113,24 @@ func (t Transaction) Bytes() []byte {
 	buffer := new(bytes.Buffer)
 	json.NewEncoder(buffer).Encode(t)
 	return buffer.Bytes()
+}
+
+func (t Transaction) PrettyPrint() string {
+	/*
+		f := colorjson.NewFormatter()
+		f.Indent = 2
+
+		res, err := f.Marshal(t)
+		if err != nil {
+			fmt.Printf("%+v\n", err)
+		}
+		fmt.Printf("%s\n", res)
+	*/
+	res, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+	}
+	return string(res)
 }
 
 func (t Transaction) Hash() (crypto.Hash, error) {

@@ -1,6 +1,9 @@
 package chain
 
 import (
+	"bytes"
+	"encoding/json"
+	"strconv"
 	"sync"
 	"time"
 
@@ -10,20 +13,90 @@ import (
 
 // Header is the header of a block
 type Header struct {
-	version      uint8
-	previousHash crypto.Hash
-	merkleRoot   crypto.Hash
-	time         time.Time
+	Version      uint8 `json:"version"`
+	PreviousHash crypto.Hash
+	MerkleRoot   crypto.Hash
+	hash         crypto.Hash
+	Time         time.Time
 }
 
 type Block struct {
-	header       Header
-	transactions crypto.MerkleTree
+	Header       Header
+	Transactions crypto.MerkleTree
 }
 
 type Chain struct {
 	blocks []Block
 	mu     sync.RWMutex
+}
+
+func (h Header) Hash() (crypto.Hash, error) {
+	var buf bytes.Buffer
+	buf.WriteByte(byte(h.Version))
+	buf.Write(h.MerkleRoot)
+	buf.WriteString(strconv.Itoa(int(h.Time.Unix())))
+
+	if h, err := crypto.HashData(buf.Bytes()); err != nil {
+		return nil, err
+	} else {
+		return h, nil
+	}
+
+}
+
+func (b Block) PrettyPrint() string {
+	res, _ := json.MarshalIndent(b, "", "  ")
+	return string(res)
+}
+
+func (c *Chain) Length() int {
+	return len(c.blocks)
+}
+
+func NewBlock(txns []crypto.Hashable) *Block {
+	merkleTree, _ := crypto.NewMerkleTree(txns)
+	header := Header{
+		Version:    1,
+		MerkleRoot: merkleTree.RootHash(),
+		Time:       time.Now(),
+	}
+
+	block := Block{
+		Header:       header,
+		Transactions: *merkleTree,
+	}
+	block.Header.hash, _ = block.Header.Hash()
+	return &block
+}
+
+func (b *Block) SetPreviousHash(h crypto.Hash) {
+	b.Header.PreviousHash = h
+}
+
+func (c *Chain) AddBlock(block Block) {
+	c.mu.Lock()
+	prev_block_hash := c.blocks[len(c.blocks)-1].Header.hash
+	block.SetPreviousHash(prev_block_hash)
+	c.blocks = append(c.blocks, block)
+	c.mu.Unlock()
+}
+
+func NewChain() *Chain {
+	genesis := Block{
+		Header: Header{
+			Version:      0,
+			PreviousHash: []byte{0},
+			MerkleRoot:   []byte{0},
+			hash:         []byte{0},
+			Time:         time.Time{},
+		},
+		Transactions: crypto.MerkleTree{},
+	}
+	return &Chain{
+		blocks: []Block{genesis},
+		mu:     sync.RWMutex{},
+	}
+
 }
 
 type UtxoSet interface {

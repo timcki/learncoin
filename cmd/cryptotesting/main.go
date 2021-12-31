@@ -14,15 +14,20 @@ import (
 const RINGSIZE = 4
 
 type ChainSimulation struct {
+	// Simulation parameters
 	Addr        []transaction.Address
 	utxoSet     chain.UtxoSet
 	utxoForAddr map[int][]crypto.FixedHash
+
+	// Chain
+	Chain chain.Chain
 }
 
 func NewChainSimulation(addrQuant int, utxoSetSize int) *ChainSimulation {
 	chainSim := ChainSimulation{
 		utxoSet:     chain.NewUtxoSet(),
 		utxoForAddr: make(map[int][]crypto.FixedHash),
+		Chain:       *chain.NewChain(),
 	}
 	var addr []transaction.Address
 	rand.Seed(time.Now().Unix())
@@ -50,7 +55,7 @@ func NewChainSimulation(addrQuant int, utxoSetSize int) *ChainSimulation {
 	return &chainSim
 }
 
-func (sim *ChainSimulation) RandomTxn() {
+func (sim *ChainSimulation) RandomTxn() *transaction.Transaction {
 	// Choose address at random
 	a := rand.Intn(len(sim.Addr))
 	addr := sim.Addr[a]
@@ -83,7 +88,7 @@ func (sim *ChainSimulation) RandomTxn() {
 	}
 	if len(decoyUtxos) == 0 {
 		fmt.Println("Not enough utxos with mirror amount, skipping")
-		return
+		return nil
 	}
 
 	// Address
@@ -99,8 +104,7 @@ func (sim *ChainSimulation) RandomTxn() {
 
 	randomAmount := float32(rand.Intn(int(trueUtxo.Amount)*100)) / 100
 	txn := addr.NewTransaction(append(decoyUtxos, *trueUtxo), randomAmount, addr2)
-	message := txn.Bytes()
-	fmt.Printf("Created new transaction: %s\n", message)
+	fmt.Println("Created new transaction...")
 
 	fmt.Println("Computing ring signature for:")
 	fmt.Printf("  Real utxo:    %s", trueUtxo.Bytes())
@@ -114,8 +118,7 @@ func (sim *ChainSimulation) RandomTxn() {
 
 	txn.Sigature = ringSig
 
-	fmt.Printf("Signed transaction: %s\n", txn.Bytes())
-
+	return &txn
 }
 
 // scanAddress scans the utxo set for utxos generated from own public keypair. Returns number of utxos founds
@@ -133,71 +136,32 @@ func (sim *ChainSimulation) scanAddress(n int) int {
 
 func main() {
 
-		addr, _ := transaction.NewAddress()
-		fmt.Printf("%x %x\n", addr.PubKey.A.Bytes(), addr.PubKey.B.Bytes())
-		fmt.Println(addr.PubKey.ToHumanReadable(false))
-	/*
-		addr2, _ := transaction.NewAddress()
-
-		fmt.Println(addr1.PubKey.ToHumanReadable(false))
-		fmt.Println(addr2.PubKey.ToHumanReadable(false))
-
-		for i := 0; i < 3; i++ {
-			if dest, err := addr1.NewDestinationAddress(); err != nil {
-				panic(err)
-			} else {
-				check1 := addr1.CheckDestinationAddress(dest)
-				check2 := addr2.CheckDestinationAddress(dest)
-				if !check1 || check2 {
-					panic("Failed check")
-				}
-
-				fmt.Printf("Checking for right address: %v\n", check1)
-				fmt.Printf("Checking for wrong address: %v\n\n", check2)
-
-				x, err := addr1.ComputePrivateKey(dest)
-				if err != nil {
-					panic(err)
-				}
-				P := new(edwards25519.Point).ScalarBaseMult(x)
-				if P.Equal(dest.P) != 1 {
-					panic("Couldn't recover tx priv key x")
-				}
-			}
-		}
-	*/
-
-	/*
-		var txns []transaction.Utxo
-
-		kp, err := addr1.NewDestinationAddress()
-		if err != nil {
-			panic(err)
-		}
-		trueUtxo := transaction.NewUtxo(0, kp)
-		for i := 0; i < 9; i++ {
-			k, err := addr2.NewDestinationAddress()
-			if err != nil {
-				panic(err)
-			}
-			txns = append(txns, *transaction.NewUtxo(0, k))
-
-		}
-	*/
-	//ringSig := addr1.NewRingSignature(*trueUtxo, txns, message)
-	//fmt.Println(ringSig.CheckSignatureValidity())
-	//fmt.Println("Test passed")
-
 	fmt.Println("====== learncoin chain simulation ======")
 	fmt.Println(" This binary will generate a simulated")
 	fmt.Println("     chain state and perform random")
-	fmt.Println("     transactions every 2 seconds")
+	fmt.Println("      transactions every 2 seconds")
 	fmt.Println("========================================")
 	fmt.Print("\n\n====== Generating new chain simulation ======\n\n")
 	sim := NewChainSimulation(1000, 150000)
+
+	mempool := make([]crypto.Hashable, 0)
 	for {
 		fmt.Println("\n==== Simulating transaction ====")
-		sim.RandomTxn()
+		txn := sim.RandomTxn()
+		if txn != nil {
+			fmt.Printf("Signed transaction: %s\n", txn.PrettyPrint())
+			mempool = append(mempool, txn)
+		}
+		// Construct block with 50% prob if more than two txns
+		if len(mempool) > 2 && rand.Intn(2) < 1 {
+			fmt.Println("Constructing block from transactions")
+			block := chain.NewBlock(mempool)
+			sim.Chain.AddBlock(*block)
+			fmt.Printf("Added block to chain: %s\n", block.PrettyPrint())
+			fmt.Printf("Chain length: %d\n", sim.Chain.Length())
+			fmt.Println("Clearing mempool")
+			mempool = make([]crypto.Hashable, 0)
+		}
 		time.Sleep(time.Second * 2)
 	}
 }
