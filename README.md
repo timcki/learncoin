@@ -5,16 +5,18 @@
 A cryptocurrency developed for my engineering thesis featuring a simple blockchain and confidential transactions
 
 ## Running the project
-To build learncoind run
+To run the cryptographic simulation run 
 ```bash
-go build -o learncoind .
+docker build -t simulation .
+docker run -it simulation
 ```
 in the root dir
 
-Then to run
+To run the peer-to-peer network run the command
+```bash
+docker-compose up --build
 ```
-./learncoind -d -i
-```
+
 
 ## Short technical description
 This project is a basic implementation of a blockchain based cryptocurrency featuring confidentinal transactions using zero knowledge proofs.
@@ -24,9 +26,3 @@ The end-goal is to be able to generate an identity (a private EC key) and have t
 The inspiration for this thesis are mainly:
 * Bitcoin - the first cryptocurrency
 * Monero - the leading privacy coin
-
-# TODO
-- [ ] Implement basic mempool as array/map
-- [ ] Implement ECC
-    - [ ] Ed25519 Curve as struct with addition etc
-    - [ ] ECDSA on Ed25519
