@@ -3,6 +3,8 @@ package utility
 import (
 	"math/rand"
 	"time"
+
+	"github.com/TylerBrock/colorjson"
 )
 
 func ShuffleAndAdd[T any](addition T, array []T) (pos int, res []T) {
@@ -18,4 +20,12 @@ func ShuffleAndAdd[T any](addition T, array []T) (pos int, res []T) {
 	res = append(res, addition)
 	res = append(res, array[pos:]...)
 	return
+}
+
+func PrettyPrint[T any](obj T) string {
+	b, err := colorjson.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }

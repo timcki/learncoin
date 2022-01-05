@@ -52,7 +52,6 @@ func (t Transaction) CheckValidity() bool {
 func (utxo Utxo) Bytes() []byte {
 	buffer := new(bytes.Buffer)
 	json.NewEncoder(buffer).Encode(utxo)
-	//fmt.Printf(string(buffer.Bytes()))
 	return buffer.Bytes()
 }
 
@@ -77,6 +76,7 @@ func (utxo Utxo) Hash() (crypto.Hash, error) {
 	return crypto.HashData(buf.Bytes())
 }
 
+// NewUtxo returns
 func NewUtxo(amount float32, keypair OneTimeAddress) *Utxo {
 	utxo := Utxo{
 		Amount:  amount,
@@ -91,23 +91,9 @@ func NewUtxo(amount float32, keypair OneTimeAddress) *Utxo {
 }
 
 // Used for testing purposes
-//func randomTransaction() *Transaction {
-//sender := Address{rand.Intn(16384), rand.Intn(16384)}
-//receiver := Address{rand.Intn(16384), rand.Intn(16384)}
-//return &Transaction{sender, receiver, rand.Intn(1000)}
-//}
 
-//func NewTransaction(sender, receiver Address, amount int) Transaction {
-//return Transaction{Sender: sender, Receiver: receiver, Amount: amount}
-//}
-
-//func NewTransaction(in []*Utxo, out []*Utxo, to OneTimeAddress) {
-//return &
-
-//}
-
-// I'm choosing the default Go byte encoder (gob). It reduces interoperability
-// but it's not important since this is a reference design.
+// I'm choosing the default json encoder for encoding. It increases interoperability
+// while lossing out on space. This is a reference design.
 // In case of a problem it's also abstracted away so easy to change
 func (t Transaction) Bytes() []byte {
 	buffer := new(bytes.Buffer)
@@ -116,16 +102,6 @@ func (t Transaction) Bytes() []byte {
 }
 
 func (t Transaction) PrettyPrint() string {
-	/*
-		f := colorjson.NewFormatter()
-		f.Indent = 2
-
-		res, err := f.Marshal(t)
-		if err != nil {
-			fmt.Printf("%+v\n", err)
-		}
-		fmt.Printf("%s\n", res)
-	*/
 	res, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		fmt.Printf("%+v\n", err)

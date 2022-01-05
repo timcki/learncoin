@@ -1,4 +1,5 @@
 {
-  "baseFontSize": 16,
-  "cssTheme": "California Coast"
+  "baseFontSize": 13,
+  "cssTheme": "",
+  "theme": "moonstone"
 }

@@ -1,7 +1,9 @@
 package crypto
 
 import (
+	"fmt"
 	"math"
+	"strings"
 )
 
 type Node struct {
@@ -77,7 +79,16 @@ func (m *MerkleTree) GetNodes() []Node {
 }
 
 // TODO: Print the MerkleTree in a pretty form with hashes and values
-func (m *MerkleTree) PresentTree() string {
+func (m *MerkleTree) PrettyPrint() string {
+	var str strings.Builder
+	for i, el := range m.nodes {
+		pow := math.Ceil(math.Log2(float64(i)))
+		for j := 0; j < int(pow); j++ {
+			str.WriteString(" ")
+		}
+		str.WriteString(fmt.Sprintf("%d: %v\n", i, el))
+	}
+
 	//result := ""
-	return ""
+	return str.String()
 }

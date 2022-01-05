@@ -24,8 +24,8 @@ type VersionMessage struct {
 	Nonce   uint64 // Random nonce to detect connections to self
 }
 
-func NewVersionMessage(version, addr string, id crypto.FixedHash) VersionMessage {
-	return VersionMessage{
+func NewVersionMessage(version, addr string, id crypto.FixedHash) Message {
+	return &VersionMessage{
 		Version: version,
 		Address: addr,
 		ID:      id,
@@ -49,8 +49,8 @@ func NewVerAckMessage() Message {
 
 type GetAddrMessage struct{}
 
-func NewGetAddrMessage() GetAddrMessage {
-	return GetAddrMessage{}
+func NewGetAddrMessage() Message {
+	return &GetAddrMessage{}
 }
 
 func (m GetAddrMessage) Command() string {
@@ -58,13 +58,11 @@ func (m GetAddrMessage) Command() string {
 }
 
 type AddrMessage struct {
-	Count int
 	Nodes []string
 }
 
 func NewAddrMessage(nodes []string) Message {
 	return &AddrMessage{
-		Count: len(nodes),
 		Nodes: nodes,
 	}
 }
@@ -73,8 +71,12 @@ func (m AddrMessage) Command() string {
 	return CmdAddr
 }
 
-type PingMessage struct{}
-type PongMessage struct{}
+type PingMessage struct {
+	Ping string
+}
+type PongMessage struct {
+	Pong string
+}
 
 func (m PingMessage) Command() string {
 	return CmdPing
@@ -93,7 +95,7 @@ func NewPongMessage() Message {
 }
 
 type Msg interface {
-	MessageHeader | PingMessage | PongMessage | AddrMessage | GetAddrMessage
+	MessageHeader | PingMessage | PongMessage | AddrMessage | GetAddrMessage | VerAckMessage | VersionMessage
 }
 
 // Interface that struct must implement to

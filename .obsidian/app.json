@@ -1,8 +1,15 @@
 {
   "legacyEditor": false,
-  "livePreview": true,
+  "livePreview": false,
   "vimMode": true,
   "showFrontmatter": true,
   "showLineNumber": false,
-  "spellcheck": true
+  "spellcheck": true,
+  "pdfExportSettings": {
+    "pageSize": "A4",
+    "landscape": false,
+    "margin": "0",
+    "downscalePercent": 95
+  },
+  "emacsyKeys": false
 }

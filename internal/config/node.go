@@ -27,7 +27,7 @@ type Address struct {
 }
 
 func NewAddressFromString(addr string) Address {
-	a := strings.Split(addr, ",")
+	a := strings.Split(addr, ":")
 	return Address{Addr: a[0], Port: a[1]}
 }
 

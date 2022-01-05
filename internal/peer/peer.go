@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -24,26 +24,7 @@ var (
 	MalformedVersionMessageError = errors.New("Malformed VersionMessage on initial connection")
 )
 
-type Peer interface {
-	SetConn(conn net.Conn)
-	SetInbound(b bool)
-	SetAlive(b bool)
-	SetAddr(addr config.Address)
-
-	GetConn() net.Conn
-	GetAddr() config.Address
-	// TODO: Create type for node id
-	GetID() crypto.FixedHash
-	IsInboud() bool
-	IsAlive() bool
-
-	SendVersionMessage(messages.VersionMessage) error
-	HandleVersionMessage() error
-
-	Start()
-}
-
-type peer struct {
+type Peer struct {
 	// Connection to the peer. From doc:
 	// Multiple goroutines may invoke methods on a Conn simultaneously.
 	// So no mutex needed
@@ -70,110 +51,105 @@ type peer struct {
 	// Should be called from only one place so
 	// safe for concurrent access (I think?)
 	alive bool
+
+	// Callbacks to node
+	getPeers                func(crypto.FixedHash) []string
+	newOutboundPeerCallback func(string) error
 }
 
-func (p peer) SetConn(conn net.Conn) {
+func (p *Peer) SetConn(conn net.Conn) {
 	p.conn = conn
 }
 
-func (p peer) SetInbound(b bool) {
+func (p *Peer) SetInbound(b bool) {
 	p.inbound = b
 }
 
-func (p peer) SetAlive(b bool) {
+func (p *Peer) SetAlive(b bool) {
 	p.alive = b
 }
 
-func (p peer) SetAddr(addr config.Address) {
+func (p *Peer) SetAddr(addr config.Address) {
 	p.addr = addr
 }
 
-func (p peer) GetConn() net.Conn {
+func (p Peer) GetConn() net.Conn {
 	return p.conn
 }
 
-func (p peer) GetAddr() config.Address {
+func (p Peer) GetAddr() config.Address {
 	return p.addr
 }
 
-func (p peer) GetID() crypto.FixedHash {
+func (p Peer) GetID() crypto.FixedHash {
 	return p.id
 }
 
-func (p peer) IsInboud() bool {
+func (p Peer) IsInboud() bool {
 	return p.inbound
 }
-func (p peer) IsAlive() bool {
+func (p Peer) IsAlive() bool {
 	return p.alive
 }
 
-func readMessage[T messages.Msg](conn net.Conn) (*T, error) {
-	header := new(messages.MessageHeader)
-	decoder := json.NewDecoder(conn)
-	if err := decoder.Decode(header); err != nil {
-		//log.Error().Err(err).Msg("Failed to parse message")
-		return header, err
+func (p Peer) ReadMessage() (messages.Message, error) {
+	var msg messages.Message
+	if err := gob.NewDecoder(p.conn).Decode(&msg); err != nil {
+		return nil, err
 	}
-	//return
+	return msg, nil
 }
 
-func writeMessage[T messages.Message](msg T, conn net.Conn) error {
-	// TODO: (?) Create global encoder and hold it in structure
-	p.logger.Info("!!!!!!!!!!!!!!!!!!!!", "conn", p.conn.RemoteAddr().String())
-	//header := messages.MessageHeader{Cmd: msg.Command()}
-	encoder := gob.NewEncoder(p.conn)
-	if err := encoder.Encode(&msg); err != nil {
-		p.logger.Error("Failed to send message", "msg", msg.Command(), "err", err)
-		return err
+func parseMessage[T messages.Msg](conn net.Conn) (*T, error) {
+	msg := new(T)
+	if err := json.NewDecoder(conn).Decode(msg); err != nil {
+		return nil, err
 	}
-	return nil
-
+	return msg, nil
 }
 
-// sendVersionMessage sends a VersionMessage and waits for VerAck
-// otherwise fails
-func (p peer) SendVersionMessage(msg messages.VersionMessage) error {
-	//msg := messages.NewVersionMessage(connHost, p.id)
-	fmt.Printf("!!!!!!!!!!!!!!!!!!!! Conn: %+v", p.conn.RemoteAddr())
-	if err := p.writeMessage(&msg); err != nil {
-		return err
+func (p Peer) WriteMessage(msg messages.Message) error {
+	return gob.NewEncoder(p.conn).Encode(&msg)
+}
+
+func (p *Peer) HandleAddressMessage(msg messages.AddrMessage) {
+	for _, addr := range msg.Nodes {
+		if err := p.newOutboundPeerCallback(addr); err != nil {
+			p.logger.Warn("Failed to connect to node", "addr", addr)
+		} else {
+			p.logger.Debug("Connected to", "addr", addr)
+		}
 	}
-	verack, err := p.readMessage()
-	if err != nil || verack.Command() != messages.CmdVerAck {
-		p.logger.Error("Didn't receive VerAckMessage", "err", err)
-		return err
-	}
-	return nil
+}
+
+func (p *Peer) HandleGetAddressMessage() error {
+	otherPeers := p.getPeers(p.id)
+	msg := messages.NewAddrMessage(otherPeers)
+	return p.WriteMessage(msg)
 }
 
 // handleVersionMessage reads a message from the peer network connection,
 // parses it if it's a VersionMessage and sends a VerAck, otherwise returns error
-func (p peer) HandleVersionMessage() error {
-	msg, err := p.readMessage()
+func (p *Peer) HandleVersionMessage() error {
+	msg, err := p.ReadMessage()
 	if err != nil {
 		return err
 	}
-	if msg.Command() == messages.CmdVersion {
-		// Receive VersionMessage and send verack before actually registering the peer
-		if err := p.writeMessage(messages.NewVerAckMessage()); err != nil {
-			return err
-		}
-		// Fill info from VersionMessage
-		address := p.conn.RemoteAddr().String()
-		p.logger.Info("Remote addr string", "addr", address)
-		p.addr = config.NewAddressFromString(msg.(messages.VersionMessage).Address)
-		p.id = msg.(messages.VersionMessage).ID
-		p.logger.Debug("addr", "addr", p.addr)
+	ver := msg.(messages.VersionMessage)
 
-		return nil
-	}
-	return NoVersionMessageOnInitError
+	address := p.conn.RemoteAddr().String()
+	p.logger.Info("Remote addr string", "addr", address)
+	p.addr = config.NewAddressFromString(address)
+	p.id = ver.ID
+	p.logger.Debug("addr", "addr", p.addr)
+
+	return nil
 }
 
 // TODO: Add background func started in main that periodically
 // iterates over all peers and tries to reconnect to dead ones
 // or deletes ones that are dead for longer than 90 minutes
-func (p *peer) restartConnection() error {
+func (p *Peer) restartConnection() error {
 	p.conn.Close()
 	conn, err := net.Dial(connType, p.addr.ToString())
 	if err != nil {
@@ -185,17 +161,26 @@ func (p *peer) restartConnection() error {
 	return nil
 }
 
-func (p peer) Start() {
+func (p Peer) Start() {
 	//go p.inConnHandler()
 	go p.inHandler()
 	go p.outHandler()
 }
 
 // inHandler sends messages to other peers
-func (p *peer) outHandler() {
+func (p *Peer) outHandler() {
 	for range time.Tick(3 * time.Second) {
-		if err := p.writeMessage(messages.NewPingMessage()); err != nil {
-			log.Error("Failed to send ping", "err", err)
+		if !p.inbound {
+			if err := p.WriteMessage(messages.NewPingMessage()); err != nil {
+				log.Error("Failed to send ping", "err", err)
+			}
+			// 30% chance to ask for peers
+			if rand.Intn(10) > 7 {
+				if err := p.WriteMessage(messages.NewGetAddrMessage()); err != nil {
+					p.logger.Error("Failed to send get addr", "err", err)
+				}
+
+			}
 		}
 	}
 	//	for range time.Tick(3 * time.Second) {
@@ -255,9 +240,9 @@ func (p *peer) outHandler() {
 // TODO: Switch statement on the current action from channel sent from here in new func
 // TODO: Parse type of message from peer (new client, tx, new block, etc.)
 // and send into the appropriate channel
-func (p *peer) inHandler() {
+func (p *Peer) inHandler() {
 	for {
-		msg, err := p.readMessage()
+		msg, err := p.ReadMessage()
 		if err != nil {
 			p.logger.Error("Received malformed request", "err", err)
 			if err := p.restartConnection(); err != nil {
@@ -272,30 +257,32 @@ func (p *peer) inHandler() {
 		case messages.CmdVerAck:
 			p.logger.Warn("Ignoring VerAckMessage after initialization")
 		case messages.CmdPing:
-			p.writeMessage(messages.NewPongMessage())
-			p.logger.Debug("Sent Ping")
+			p.WriteMessage(messages.NewPongMessage())
+			p.logger.Debug("Got ping")
 		case messages.CmdPong:
-			p.logger.Debug("Got Pong")
+			p.logger.Debug("Sent pong")
 		case messages.CmdGetAddr:
-			p.logger.Debug("Got CmdGetAddr")
+			p.logger.Debug("Got Get Address command")
+			if err := p.HandleGetAddressMessage(); err != nil {
+				p.logger.Error("Failed to send GetAddress", "err", err)
+			}
+		case messages.CmdAddr:
+			p.logger.Debug("Got Address command")
+			p.HandleAddressMessage(msg.(messages.AddrMessage))
 		default:
 			p.logger.Warn("Unknown command")
-
 		}
-		//		var tx Transaction
-		//		decoder := gob.NewDecoder(p.conn)
-		//		err := decoder.Decode(&tx)
-		//		if err != nil {
-		//			log.Error().Err(err).Msg("Received malformed request")
-		//			p.conn.Close()
-		//			return
-		//		}
-		//		log.Info().Msgf("Got message: %+v from peer %s", tx, p.addr)
 	}
 }
 
-func NewPeer(logger log.Logger) Peer {
-	return peer{
-		logger: logger,
+func NewPeer(
+	logger log.Logger,
+	getPeersCallback func(crypto.FixedHash) []string,
+	newOutboundPeerCallback func(string) error,
+) Peer {
+	return Peer{
+		logger:                  logger,
+		getPeers:                getPeersCallback,
+		newOutboundPeerCallback: newOutboundPeerCallback,
 	}
 }

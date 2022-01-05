@@ -3,7 +3,9 @@ package chain
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,30 +15,54 @@ import (
 
 // Header is the header of a block
 type Header struct {
-	Version      uint8 `json:"version"`
-	PreviousHash crypto.Hash
-	MerkleRoot   crypto.Hash
-	hash         crypto.Hash
-	Time         time.Time
+	Version      uint8       `json:"version"`
+	PreviousHash crypto.Hash `json:"previous_hash"`
+	MerkleRoot   crypto.Hash `json:"merkle_root"`
+	hash         crypto.Hash `json:"hash"`
+	Time         time.Time   `json:"time"`
 }
 
+// Block is a container for groups of transactions. It
 type Block struct {
 	Header       Header
 	Transactions crypto.MerkleTree
 }
 
+// Chain is the abstraction of a blockchain, which means
+// * blocks represents a slice of blocks that expands
+// * a mutex that allows multi-threaded reads/writes
 type Chain struct {
-	blocks []Block
+	blocks []*Block
 	mu     sync.RWMutex
 }
 
-func (h Header) Hash() (crypto.Hash, error) {
+func (h Header) PrettyPrint() string {
+	var str strings.Builder
+	str.WriteString("{\n")
+	str.WriteString(fmt.Sprintf("  previous_hash: %v,\n", h.PreviousHash))
+	str.WriteString(fmt.Sprintf("  merkle_root:   %v,\n", h.MerkleRoot))
+	str.WriteString(fmt.Sprintf("  hash:          %v,\n", h.hash))
+	str.WriteString(fmt.Sprintf("  time:          %v\n}", h.Time))
+
+	return str.String()
+
+}
+
+// Bytes returns a byte array representation the Header
+func (h Header) Bytes() []byte {
 	var buf bytes.Buffer
+
 	buf.WriteByte(byte(h.Version))
 	buf.Write(h.MerkleRoot)
 	buf.WriteString(strconv.Itoa(int(h.Time.Unix())))
 
-	if h, err := crypto.HashData(buf.Bytes()); err != nil {
+	return buf.Bytes()
+}
+
+// Hash computes the Hash of Header
+func (h Header) Hash() (crypto.Hash, error) {
+
+	if h, err := crypto.HashData(h.Bytes()); err != nil {
 		return nil, err
 	} else {
 		return h, nil
@@ -44,7 +70,7 @@ func (h Header) Hash() (crypto.Hash, error) {
 
 }
 
-func (b Block) PrettyPrint() string {
+func (b *Block) PrettyPrint() string {
 	res, _ := json.MarshalIndent(b, "", "  ")
 	return string(res)
 }
@@ -73,9 +99,12 @@ func (b *Block) SetPreviousHash(h crypto.Hash) {
 	b.Header.PreviousHash = h
 }
 
-func (c *Chain) AddBlock(block Block) {
+func (c *Chain) AddBlock(block *Block) {
 	c.mu.Lock()
-	prev_block_hash := c.blocks[len(c.blocks)-1].Header.hash
+	prev_block_hash, err := c.blocks[len(c.blocks)-1].Header.Hash()
+	if err != nil {
+		panic(err)
+	}
 	block.SetPreviousHash(prev_block_hash)
 	c.blocks = append(c.blocks, block)
 	c.mu.Unlock()
@@ -93,7 +122,7 @@ func NewChain() *Chain {
 		Transactions: crypto.MerkleTree{},
 	}
 	return &Chain{
-		blocks: []Block{genesis},
+		blocks: []*Block{&genesis},
 		mu:     sync.RWMutex{},
 	}
 

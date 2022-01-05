@@ -1,4 +1,8 @@
 [
   "obsidian-style-settings",
-  "table-editor-obsidian"
+  "obsidian-pandoc",
+  "obsidian-plugin-toc",
+  "table-editor-obsidian",
+  "obsidian-citation-plugin",
+  "obsidian-dynamic-toc"
 ]
