@@ -4,14 +4,12 @@
     "type": "split",
     "children": [
       {
-        "id": "8558d06a713ffd8c",
+        "id": "10f98bed5b280022",
         "type": "leaf",
         "state": {
-          "type": "markdown",
+          "type": "image",
           "state": {
-            "file": "thesis/thesis.md",
-            "mode": "source",
-            "source": true
+            "file": "thesis/resources/Basic-structure-of-a-Bitcoin-block.png"
           }
         }
       }
@@ -69,7 +67,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "thesis/thesis.md",
+                "file": "thesis/resources/Basic-structure-of-a-Bitcoin-block.png",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -94,7 +92,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "thesis/thesis.md"
+                "file": "thesis/resources/Basic-structure-of-a-Bitcoin-block.png"
               }
             }
           }
@@ -106,14 +104,17 @@
     "width": 300,
     "collapsed": true
   },
-  "active": "8558d06a713ffd8c",
+  "active": "10f98bed5b280022",
   "lastOpenFiles": [
-    "thesis/thesis.md",
+    "thesis/resources/Basic-structure-of-a-Bitcoin-block.png",
+    "thesis/resources/merkle_tree.png",
+    "thesis/resources/Point-addition-on-an-elliptic-curve-defined-over-the-field-R.jpg",
     "thesis.pdf",
+    "README.md",
     "thesis/thesis.pdf",
+    "thesis/thesis.md",
     "thesis/citation.bib.md",
     "Untitled.md",
-    "thesis/thesis.md.md",
-    "thesis.md"
+    "thesis/thesis.md.md"
   ]
 }
