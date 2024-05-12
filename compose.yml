@@ -1,19 +1,16 @@
-version: '3'
-
 services:
+  bootstrapper:
+    build: .
+    env_file: .env
+    command: /bin/learncoind
 
-    bootstrapper:
-        build: .
-        env_file: .env
-        command: /bin/learncoind
-
-    learncoind:
-        build: .
-        depends_on:
-            - bootstrapper
-        deploy:
-            replicas: 6
-        env_file: .env
-        environment:
-            - BOOTSTRAP_NODE=bootstrapper:8080
-        command: /bin/learncoind
+  learncoind:
+    build: .
+    depends_on:
+      - bootstrapper
+    deploy:
+      replicas: 6
+    env_file: .env
+    environment:
+      - BOOTSTRAP_NODE=bootstrapper:8080
+    command: /bin/learncoind

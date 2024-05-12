@@ -1,6 +1,4 @@
-version: '3.16'
-
 services:
-    chain_simulation:
-        build: .
-        env_file: .env
+  chain_simulation:
+    build: .
+    env_file: .env
